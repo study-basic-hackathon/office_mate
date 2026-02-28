@@ -12,6 +12,7 @@ create table if not exists rooms (
   photos      jsonb not null default '{}',   -- { "cellIndex": "https://..." }
   season      text not null default '',
   theme       text not null default '',
+  owner_id    uuid references auth.users(id) on delete set null,  -- 作成者（匿名ユーザーも含む）
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -33,6 +34,7 @@ create trigger rooms_updated_at
 create table if not exists collection (
   id            uuid primary key default gen_random_uuid(),
   room_id       uuid references rooms(id) on delete set null,
+  user_id       uuid references auth.users(id) on delete set null,  -- 達成者（匿名ユーザーも含む）
   room_snapshot jsonb not null default '{}',  -- ビンゴ達成時点の rooms 行全体
   bingo_count   int  not null default 0,
   created_at    timestamptz not null default now()
