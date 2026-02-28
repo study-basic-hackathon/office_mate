@@ -59,6 +59,9 @@ export function useRoom(code) {
       ? { ...(room.photos ?? {}), [cellIndex]: photoUrl }
       : room.photos
 
+    // 楽観的更新：DBレスポンスを待たず即座にUIへ反映
+    setRoom(prev => ({ ...prev, found_cells: newFoundCells, photos: newPhotos }))
+
     const { data, error } = await supabase
       .from('rooms')
       .update({ found_cells: newFoundCells, photos: newPhotos })
@@ -66,13 +69,18 @@ export function useRoom(code) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      // 失敗したら元に戻す
+      setRoom(prev => ({ ...prev, found_cells: room.found_cells, photos: room.photos }))
+      throw error
+    }
+    setRoom(data)  // サーバーの確定値で同期
 
     // ビンゴ達成時だけコレクションに保存
     const bingoLines = checkBingo(newFoundCells)
     const prevLines  = checkBingo(room.found_cells ?? [FREE_INDEX])
     if (bingoLines.length > prevLines.length && userId) {
-      await saveToCollection(data, userId)   // ← user_id を渡す
+      await saveToCollection(data, userId)
     }
 
     return data
@@ -93,6 +101,7 @@ export function useRoom(code) {
       .single()
 
     if (error) throw error
+    setRoom(data)  // Realtime を待たずに即時反映
     return data
   }, [room, code])
 
